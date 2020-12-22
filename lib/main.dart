@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_manager_contact/models/contact.dart';
+import 'package:flutter_manager_contact/utils/database_helper.dart';
 
 const darkBlueColor = Color(0xff486579);
 
@@ -42,8 +43,23 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   final _formKey = GlobalKey<FormState>();
+  final _ctrlName = TextEditingController();
+  final _ctrlMobile = TextEditingController();
+
   Contact _contact = Contact();
+  DatabaseHelper _databaseHelper;
   List<Contact> _listContact = [];
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    setState(() {
+      _databaseHelper = DatabaseHelper.instance;
+      _refreshContactList();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -74,12 +90,14 @@ class _MyHomePageState extends State<MyHomePage> {
           child: Column(
             children: <Widget>[
               TextFormField(
+                controller: _ctrlName,
                 decoration: InputDecoration(labelText: "full name"),
                 onSaved: (val) => setState(() => _contact.name = val),
                 validator: (val) =>
                     (val.length == 0 ? 'this field is required' : null),
               ),
               TextFormField(
+                controller: _ctrlMobile,
                 decoration: InputDecoration(labelText: "Mobile"),
                 onSaved: (val) => setState(() => _contact.mobile = val),
                 validator: (val) =>
@@ -103,16 +121,29 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       );
 
-  _onSubmit() {
+  _onSubmit() async {
     var form = _formKey.currentState;
 
     if (form.validate()) {
       form.save();
       print("name  ${_contact.name}");
-      setState(() {
-        _listContact.add(_contact);
-      });
+      if (_contact.id == null) {
+        await _databaseHelper.insertContact(_contact);
+      } else {
+        await _databaseHelper.updateContact(_contact);
+      }
+      _refreshContactList();
+      _resetForm();
     }
+  }
+
+  _resetForm() {
+    setState(() {
+      _formKey.currentState.reset();
+      _ctrlName.clear();
+      _ctrlMobile.clear();
+      _contact.id = null;
+    });
   }
 
   _list() => Expanded(
@@ -134,6 +165,22 @@ class _MyHomePageState extends State<MyHomePage> {
                       style: TextStyle(
                           color: darkBlueColor, fontWeight: FontWeight.bold),
                     ),
+                    trailing: IconButton(
+                      icon: Icon(Icons.delete),
+                      onPressed: () async {
+                        await _databaseHelper
+                            .deleteContact(_listContact[index].id);
+                        _resetForm();
+                        _refreshContactList();
+                      },
+                    ),
+                    onTap: () {
+                      setState(() {
+                        _contact = _listContact[index];
+                        _ctrlName.text = _contact.name;
+                        _ctrlMobile.text = _contact.mobile;
+                      });
+                    },
                   ),
                   Divider(
                     height: 5,
@@ -145,4 +192,11 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ),
       );
+
+  _refreshContactList() async {
+    List<Contact> x = await _databaseHelper.fetchContacts();
+    setState(() {
+      _listContact = x;
+    });
+  }
 }
