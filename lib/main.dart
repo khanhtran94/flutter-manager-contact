@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_manager_contact/models/contact.dart';
+import 'package:flutter_manager_contact/utils/database_helper.dart';
+
+const darkBlueColor = Color(0xff486579);
 
 void main() {
   runApp(MyApp());
@@ -9,21 +13,9 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Sqlite Demo',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
-        primarySwatch: Colors.blue,
-        // This makes the visual density adapt to the platform that you run
-        // the app on. For desktop platforms, the controls will be smaller and
-        // closer together (more dense) than on mobile platforms.
+        primaryColor: darkBlueColor,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       home: MyHomePage(title: 'Flutter Demo Home Page'),
@@ -50,68 +42,161 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+  final _formKey = GlobalKey<FormState>();
+  final _ctrlName = TextEditingController();
+  final _ctrlMobile = TextEditingController();
 
-  void _incrementCounter() {
+  Contact _contact = Contact();
+  DatabaseHelper _databaseHelper;
+  List<Contact> _listContact = [];
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      _databaseHelper = DatabaseHelper.instance;
+      _refreshContactList();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
+      backgroundColor: darkBlueColor,
       appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
-            ),
-          ],
+        backgroundColor: Colors.white,
+        title: Center(
+          child: Text(
+            widget.title,
+            style: TextStyle(color: darkBlueColor),
+          ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: <Widget>[_form(), _list()],
+        ),
+      ),
+      // This trailing comma makes auto-formatting nicer for build methods.
     );
+  }
+
+  _form() => Container(
+        color: Colors.white,
+        padding: EdgeInsets.symmetric(vertical: 15, horizontal: 30),
+        child: Form(
+          child: Column(
+            children: <Widget>[
+              TextFormField(
+                controller: _ctrlName,
+                decoration: InputDecoration(labelText: "full name"),
+                onSaved: (val) => setState(() => _contact.name = val),
+                validator: (val) =>
+                    (val.length == 0 ? 'this field is required' : null),
+              ),
+              TextFormField(
+                controller: _ctrlMobile,
+                decoration: InputDecoration(labelText: "Mobile"),
+                onSaved: (val) => setState(() => _contact.mobile = val),
+                validator: (val) =>
+                    (val.length <= 5 ? 'this field is most 5' : null),
+              ),
+              Container(
+                margin: EdgeInsets.all(10),
+                child: RaisedButton(
+                  onPressed: () => _onSubmit(),
+                  child: Text(
+                    "Submit",
+                    style: TextStyle(fontSize: 20),
+                  ),
+                  color: darkBlueColor,
+                  textColor: Colors.white,
+                ),
+              )
+            ],
+          ),
+          key: _formKey,
+        ),
+      );
+
+  _onSubmit() async {
+    var form = _formKey.currentState;
+
+    if (form.validate()) {
+      form.save();
+      print("name  ${_contact.name}");
+      if (_contact.id == null) {
+        await _databaseHelper.insertContact(_contact);
+      } else {
+        await _databaseHelper.updateContact(_contact);
+      }
+      _refreshContactList();
+      _resetForm();
+    }
+  }
+
+  _resetForm() {
+    setState(() {
+      _formKey.currentState.reset();
+      _ctrlName.clear();
+      _ctrlMobile.clear();
+      _contact.id = null;
+    });
+  }
+
+  _list() => Expanded(
+        child: Card(
+          margin: EdgeInsets.fromLTRB(20, 30, 30, 0),
+          child: ListView.builder(
+            padding: EdgeInsets.all(9),
+            itemBuilder: (context, index) {
+              return Column(
+                children: [
+                  ListTile(
+                    leading: Icon(
+                      Icons.account_balance,
+                      color: darkBlueColor,
+                      size: 40,
+                    ),
+                    title: Text(
+                      _listContact[index].name.toUpperCase(),
+                      style: TextStyle(
+                          color: darkBlueColor, fontWeight: FontWeight.bold),
+                    ),
+                    trailing: IconButton(
+                      icon: Icon(Icons.delete),
+                      onPressed: () async {
+                        await _databaseHelper
+                            .deleteContact(_listContact[index].id);
+                        _resetForm();
+                        _refreshContactList();
+                      },
+                    ),
+                    onTap: () {
+                      setState(() {
+                        _contact = _listContact[index];
+                        _ctrlName.text = _contact.name;
+                        _ctrlMobile.text = _contact.mobile;
+                      });
+                    },
+                  ),
+                  Divider(
+                    height: 5,
+                  )
+                ],
+              );
+            },
+            itemCount: _listContact.length,
+          ),
+        ),
+      );
+
+  _refreshContactList() async {
+    List<Contact> x = await _databaseHelper.fetchContacts();
+    setState(() {
+      _listContact = x;
+    });
   }
 }
