@@ -8,7 +8,9 @@
     <application
         android:name="io.flutter.app.FlutterApplication"
         android:label="flutter_manager_contact"
+        android:requestLegacyExternalStorage="true"
         android:icon="@mipmap/ic_launcher">
+        
         <activity
             android:name=".MainActivity"
             android:launchMode="singleTop"

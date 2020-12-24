@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 void main() {
   runApp(MyApp());
@@ -29,7 +32,8 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+  File _image;
+  final _picker = ImagePicker();
 
   @override
   Widget build(BuildContext context) {
@@ -44,18 +48,31 @@ class _MyHomePageState extends State<MyHomePage> {
             Text(
               'You have pushed the button this many times:',
             ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
-            ),
+            Center(
+              child: _image == null ? Text("No image") : Image.file(_image),
+            )
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: null,
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
+        onPressed: () {
+          getImage();
+        },
+        tooltip: 'Camera',
+        child: Icon(Icons.camera),
       ), // This trailing comma makes auto-formatting nicer for build methods.
     );
+  }
+
+  Future getImage() async {
+    final pickedFile = await _picker.getImage(source: ImageSource.camera);
+
+    setState(() {
+      if (pickedFile != null) {
+        _image = File(pickedFile.path);
+      } else {
+        print('No image selected.');
+      }
+    });
   }
 }
