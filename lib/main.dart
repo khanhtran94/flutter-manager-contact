@@ -34,6 +34,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   File _image;
   final _picker = ImagePicker();
+  List<File> _listFileImage = [];
 
   @override
   Widget build(BuildContext context) {
@@ -42,16 +43,12 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Text(widget.title),
       ),
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'You have pushed the button this many times:',
-            ),
-            Center(
-              child: _image == null ? Text("No image") : Image.file(_image),
-            )
-          ],
+        child: ListView.builder(
+          itemBuilder: (context, index) {
+            final photo = _listFileImage[index];
+            return Image.file(photo);
+          },
+          itemCount: _listFileImage == null ? 0 : _listFileImage.length,
         ),
       ),
       floatingActionButton: FloatingActionButton(
@@ -66,10 +63,13 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future getImage() async {
     final pickedFile = await _picker.getImage(source: ImageSource.camera);
+    File photo;
 
     setState(() {
       if (pickedFile != null) {
-        _image = File(pickedFile.path);
+        // _image = File(pickedFile.path);
+        photo = File(pickedFile.path);
+        _listFileImage.add(photo);
       } else {
         print('No image selected.');
       }
